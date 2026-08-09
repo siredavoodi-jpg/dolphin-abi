@@ -246,6 +246,7 @@ create index payments_member_org_idx on public.payment_records (member_id, organ
 create index payments_membership_org_idx on public.payment_records (membership_id, organization_id) where membership_id is not null;
 create index payments_received_by_idx on public.payment_records (received_by);
 create index payments_voided_by_idx on public.payment_records (voided_by) where voided_by is not null;
+create unique index payments_one_paid_membership_idx on public.payment_records (membership_id) where membership_id is not null and status = 'paid';
 create index sessions_org_idx on public.pool_sessions (organization_id);
 create index sessions_branch_org_idx on public.pool_sessions (branch_id, organization_id);
 create index sessions_created_by_idx on public.pool_sessions (created_by);
@@ -253,6 +254,46 @@ create index reservations_org_idx on public.session_reservations (organization_i
 create index reservations_session_org_idx on public.session_reservations (session_id, organization_id);
 create index reservations_member_org_idx on public.session_reservations (member_id, organization_id);
 create index reservations_reserved_by_idx on public.session_reservations (reserved_by);
+
+-- Manual payment registration and membership activation must succeed atomically.
+create or replace function public.record_manual_membership_payment(
+  p_organization_id uuid, p_membership_id uuid, p_method text,
+  p_reference_number text, p_received_by uuid
+) returns uuid language plpgsql security invoker set search_path = '' as $$
+declare v_membership public.memberships%rowtype; v_amount bigint; v_payment_id uuid;
+begin
+  if p_method not in ('cash','pos','bank_transfer') then raise exception using errcode='22023', message='Invalid payment method'; end if;
+  if p_method in ('pos','bank_transfer') and nullif(btrim(p_reference_number),'') is null then raise exception using errcode='22023', message='Payment reference required'; end if;
+  if not exists (select 1 from public.organization_users ou where ou.organization_id=p_organization_id and ou.user_id=p_received_by and ou.role in ('owner','branch_manager','receptionist') and ou.status='active') then raise exception using errcode='42501', message='Invalid payment receiver'; end if;
+  select m.* into v_membership from public.memberships m where m.id=p_membership_id and m.organization_id=p_organization_id for update;
+  if not found then raise exception using errcode='P0002', message='Membership not found'; end if;
+  if v_membership.status <> 'pending' then raise exception using errcode='23514', message='Membership is not pending'; end if;
+  select mp.price_amount into v_amount from public.membership_plans mp where mp.id=v_membership.plan_id and mp.organization_id=p_organization_id;
+  if not found or v_amount <= 0 then raise exception using errcode='23514', message='Membership amount must be positive'; end if;
+  insert into public.payment_records (organization_id,branch_id,member_id,membership_id,amount,currency,method,status,reference_number,received_by)
+  values (p_organization_id,v_membership.branch_id,v_membership.member_id,v_membership.id,v_amount,'IRR',p_method,'paid',nullif(btrim(p_reference_number),''),p_received_by) returning id into v_payment_id;
+  update public.memberships set status='active',updated_at=now() where id=v_membership.id and organization_id=p_organization_id;
+  return v_payment_id;
+end $$;
+revoke all on function public.record_manual_membership_payment(uuid,uuid,text,text,uuid) from public,anon,authenticated;
+grant execute on function public.record_manual_membership_payment(uuid,uuid,text,text,uuid) to service_role;
+
+create or replace function public.void_manual_membership_payment(
+  p_organization_id uuid, p_payment_id uuid, p_voided_by uuid, p_void_reason text
+) returns uuid language plpgsql security invoker set search_path = '' as $$
+declare v_payment public.payment_records%rowtype;
+begin
+  if length(btrim(coalesce(p_void_reason,''))) < 3 then raise exception using errcode='22023', message='Void reason required'; end if;
+  if not exists (select 1 from public.organization_users ou where ou.organization_id=p_organization_id and ou.user_id=p_voided_by and ou.role in ('owner','branch_manager') and ou.status='active') then raise exception using errcode='42501', message='Manager access required'; end if;
+  select p.* into v_payment from public.payment_records p where p.id=p_payment_id and p.organization_id=p_organization_id for update;
+  if not found then raise exception using errcode='P0002', message='Payment not found'; end if;
+  if v_payment.status <> 'paid' then raise exception using errcode='23514', message='Payment is not paid'; end if;
+  update public.payment_records set status='voided',voided_at=now(),voided_by=p_voided_by,void_reason=btrim(p_void_reason) where id=v_payment.id;
+  if v_payment.membership_id is not null then update public.memberships set status='pending',updated_at=now() where id=v_payment.membership_id and organization_id=p_organization_id and status='active'; end if;
+  return v_payment.id;
+end $$;
+revoke all on function public.void_manual_membership_payment(uuid,uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.void_manual_membership_payment(uuid,uuid,uuid,text) to service_role;
 
 -- Authorization helpers live outside the exposed API schema.
 create or replace function private.has_org_role(target_org_id uuid, allowed_roles text[])
