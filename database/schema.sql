@@ -2,6 +2,9 @@
 -- PostgreSQL 17 / Supabase. This is a reviewable schema, not yet a migration.
 
 create extension if not exists citext with schema extensions;
+
+-- Allow PostgREST to resolve extension-backed column types such as citext.
+alter role authenticator set pgrst.db_extra_search_path = 'extensions';
 create extension if not exists pgcrypto;
 
 create schema if not exists private;
@@ -410,7 +413,8 @@ using (private.has_org_role(organization_id, array['owner','branch_manager']));
 
 -- Explicit Data API exposure; no anonymous table access in the MVP.
 revoke all on all tables in schema public from anon;
-grant select, update on public.profiles to authenticated;
+grant select on public.profiles to authenticated;
+grant update (full_name, phone) on public.profiles to authenticated;
 grant select, update on public.organizations to authenticated;
 grant select, insert, update, delete on public.branches to authenticated;
 grant select, insert, update, delete on public.organization_users to authenticated;
@@ -423,3 +427,5 @@ grant select, insert, update on public.session_reservations to authenticated;
 grant select, insert on public.attendance_events to authenticated;
 grant select on public.audit_logs to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to service_role;
+grant usage, select on all sequences in schema public to service_role;
