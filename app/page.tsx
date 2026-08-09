@@ -2,7 +2,7 @@
 import {Bell,CalendarDays,ChevronDown,CircleDollarSign,Clock3,CreditCard,LayoutDashboard,Menu,Search,Settings,ShoppingBag,TrendingUp,UserPlus,Users,Waves,X,ArrowUpLeft,Check,MoreHorizontal,WalletCards,ScanLine,Ticket,PackageOpen,BarChart3} from "lucide-react";
 import {useState} from "react";
 
-const nav=[[LayoutDashboard,"نمای کلی"],[Users,"اعضا"],[ScanLine,"پذیرش"],[CreditCard,"کارت و کیف پول"],[CalendarDays,"سانس‌ها"],[ShoppingBag,"فروشگاه"],[PackageOpen,"انبار"],[BarChart3,"گزارش‌ها"]] as const;
+const nav=[[LayoutDashboard,"نمای کلی"],[Users,"اعضا"],[ScanLine,"پذیرش"],[CreditCard,"عضویت‌ها"],[CalendarDays,"سانس‌ها"],[ShoppingBag,"فروشگاه"],[PackageOpen,"انبار"],[BarChart3,"گزارش‌ها"]] as const;
 const sessions=[
   ["۰۸:۰۰ – ۱۰:۰۰","شنای آزاد بانوان","سارا احمدی","۳۹ / ۵۰","۷۸٪","b"],
   ["۱۰:۳۰ – ۱۲:۰۰","آموزش کودکان","امیر رضایی","۲۳ / ۲۵","۹۲٪","o"],
@@ -24,7 +24,7 @@ export default function Home(){
    <div className="brand"><span><Waves/></span><div><b>دلفین آبی</b><small>DOLPHIN ABI</small></div></div>
    <label>فضای کاری</label>
    <button className="branch" onClick={()=>window.location.href="/branches"}><i>م</i><span><b>شعبه مرکزی</b><small>مدیریت شعبه‌ها</small></span><ChevronDown/></button>
-   <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>n===1?window.location.href="/members":ping(t+" در نسخه نمایشی آماده است")}><I/><span>{t}</span>{t==="پذیرش"&&<em>۱۲</em>}</button>)}</nav>
+   <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>n===1?window.location.href="/members":n===3?window.location.href="/memberships":ping(t+" در نسخه نمایشی آماده است")}><I/><span>{t}</span>{t==="پذیرش"&&<em>۱۲</em>}</button>)}</nav>
    <div className="sidefoot"><button onClick={()=>window.location.href="/users"}><Settings/> کاربران و دسترسی‌ها</button><div className="profile"><span>ح‌گ</span><div><b>حسین گرایلی</b><small>مدیر کل مجموعه</small></div><MoreHorizontal/></div></div>
   </aside>
   {menu&&<div className="shade" onClick={()=>setMenu(false)}/>}
