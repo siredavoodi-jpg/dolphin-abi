@@ -24,7 +24,7 @@ export default function Home(){
    <div className="brand"><span><Waves/></span><div><b>دلفین آبی</b><small>DOLPHIN ABI</small></div></div>
    <label>فضای کاری</label>
    <button className="branch" onClick={()=>window.location.href="/branches"}><i>م</i><span><b>شعبه مرکزی</b><small>مدیریت شعبه‌ها</small></span><ChevronDown/></button>
-   <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>t==="اعضا"?window.location.href="/members":t==="عضویت‌ها"?window.location.href="/memberships":t==="پرداخت‌ها"?window.location.href="/payments":ping(t+" در نسخه نمایشی آماده است")}><I/><span>{t}</span>{t==="پذیرش"&&<em>۱۲</em>}</button>)}</nav>
+   <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>t==="اعضا"?window.location.href="/members":t==="عضویت‌ها"?window.location.href="/memberships":t==="پرداخت‌ها"?window.location.href="/payments":t==="سانس‌ها"?window.location.href="/sessions":ping(t+" در نسخه نمایشی آماده است")}><I/><span>{t}</span>{t==="پذیرش"&&<em>۱۲</em>}</button>)}</nav>
    <div className="sidefoot"><button onClick={()=>window.location.href="/users"}><Settings/> کاربران و دسترسی‌ها</button><div className="profile"><span>ح‌گ</span><div><b>حسین گرایلی</b><small>مدیر کل مجموعه</small></div><MoreHorizontal/></div></div>
   </aside>
   {menu&&<div className="shade" onClick={()=>setMenu(false)}/>}

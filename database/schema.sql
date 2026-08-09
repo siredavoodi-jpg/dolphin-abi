@@ -295,6 +295,45 @@ end $$;
 revoke all on function public.void_manual_membership_payment(uuid,uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.void_manual_membership_payment(uuid,uuid,uuid,text) to service_role;
 
+-- Lock the session row while reserving so concurrent requests cannot exceed capacity.
+create or replace function public.reserve_pool_session(
+  p_organization_id uuid,p_session_id uuid,p_member_id uuid,p_reserved_by uuid
+) returns uuid language plpgsql security invoker set search_path='' as $$
+declare v_session public.pool_sessions%rowtype; v_reservation public.session_reservations%rowtype; v_count integer; v_id uuid;
+begin
+  select s.* into v_session from public.pool_sessions s where s.id=p_session_id and s.organization_id=p_organization_id for update;
+  if not found then raise exception using errcode='P0002',message='Session not found'; end if;
+  if v_session.status<>'scheduled' or v_session.starts_at<=now() then raise exception using errcode='23514',message='Session is not available'; end if;
+  if not exists(select 1 from public.organization_users ou where ou.organization_id=p_organization_id and ou.user_id=p_reserved_by and ou.role in('owner','branch_manager','receptionist') and ou.status='active') then raise exception using errcode='42501',message='Staff access required'; end if;
+  if not exists(select 1 from public.members m where m.id=p_member_id and m.organization_id=p_organization_id and m.status='active') then raise exception using errcode='23503',message='Active member not found'; end if;
+  if not exists(select 1 from public.memberships ms where ms.organization_id=p_organization_id and ms.member_id=p_member_id and ms.status='active' and ms.starts_on<=v_session.starts_at::date and ms.ends_on>=v_session.starts_at::date and (ms.remaining_sessions is null or ms.remaining_sessions>0)) then raise exception using errcode='23514',message='Active membership required'; end if;
+  select r.* into v_reservation from public.session_reservations r where r.session_id=p_session_id and r.member_id=p_member_id for update;
+  if found and v_reservation.status='confirmed' then raise exception using errcode='23505',message='Member already reserved'; end if;
+  if found and v_reservation.status<>'cancelled' then raise exception using errcode='23514',message='Reservation cannot be reopened'; end if;
+  select count(*) into v_count from public.session_reservations r where r.session_id=p_session_id and r.status='confirmed';
+  if v_count>=v_session.capacity then raise exception using errcode='23514',message='Session capacity reached'; end if;
+  if found then update public.session_reservations set status='confirmed',reserved_by=p_reserved_by,reserved_at=now(),cancelled_at=null where id=v_reservation.id returning id into v_id;
+  else insert into public.session_reservations(organization_id,session_id,member_id,status,reserved_by) values(p_organization_id,p_session_id,p_member_id,'confirmed',p_reserved_by) returning id into v_id; end if;
+  return v_id;
+end $$;
+revoke all on function public.reserve_pool_session(uuid,uuid,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.reserve_pool_session(uuid,uuid,uuid,uuid) to service_role;
+
+create or replace function public.cancel_pool_reservation(
+  p_organization_id uuid,p_reservation_id uuid,p_cancelled_by uuid
+) returns uuid language plpgsql security invoker set search_path='' as $$
+declare v_reservation public.session_reservations%rowtype;
+begin
+  if not exists(select 1 from public.organization_users ou where ou.organization_id=p_organization_id and ou.user_id=p_cancelled_by and ou.role in('owner','branch_manager','receptionist') and ou.status='active') then raise exception using errcode='42501',message='Staff access required'; end if;
+  select r.* into v_reservation from public.session_reservations r where r.id=p_reservation_id and r.organization_id=p_organization_id for update;
+  if not found then raise exception using errcode='P0002',message='Reservation not found'; end if;
+  if v_reservation.status<>'confirmed' then raise exception using errcode='23514',message='Reservation is not confirmed'; end if;
+  update public.session_reservations set status='cancelled',cancelled_at=now() where id=v_reservation.id;
+  return v_reservation.id;
+end $$;
+revoke all on function public.cancel_pool_reservation(uuid,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.cancel_pool_reservation(uuid,uuid,uuid) to service_role;
+
 -- Authorization helpers live outside the exposed API schema.
 create or replace function private.has_org_role(target_org_id uuid, allowed_roles text[])
 returns boolean
