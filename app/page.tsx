@@ -25,7 +25,7 @@ export default function Home(){
    <label>فضای کاری</label>
    <button className="branch"><i>م</i><span><b>شعبه مرکزی</b><small>تهران، نیاوران</small></span><ChevronDown/></button>
    <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>ping(t+" در نسخه نمایشی آماده است")}><I/><span>{t}</span>{t==="پذیرش"&&<em>۱۲</em>}</button>)}</nav>
-   <div className="sidefoot"><button><Settings/> تنظیمات</button><div className="profile"><span>ح‌گ</span><div><b>حسین گرایلی</b><small>مدیر کل مجموعه</small></div><MoreHorizontal/></div></div>
+   <div className="sidefoot"><button onClick={()=>window.location.href="/users"}><Settings/> کاربران و دسترسی‌ها</button><div className="profile"><span>ح‌گ</span><div><b>حسین گرایلی</b><small>مدیر کل مجموعه</small></div><MoreHorizontal/></div></div>
   </aside>
   {menu&&<div className="shade" onClick={()=>setMenu(false)}/>}
   <section className="content">
