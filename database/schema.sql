@@ -334,6 +334,33 @@ end $$;
 revoke all on function public.cancel_pool_reservation(uuid,uuid,uuid) from public,anon,authenticated;
 grant execute on function public.cancel_pool_reservation(uuid,uuid,uuid) to service_role;
 
+-- Entry consumes exactly one session; member and membership rows are locked to prevent duplicates.
+create or replace function public.record_member_attendance(
+  p_organization_id uuid,p_branch_id uuid,p_member_id uuid,p_session_id uuid,
+  p_event_type text,p_recorded_by uuid
+) returns uuid language plpgsql security invoker set search_path='' as $$
+declare v_member public.members%rowtype; v_membership public.memberships%rowtype; v_session public.pool_sessions%rowtype; v_last_type text; v_event_id uuid; v_today date := (now() at time zone 'Asia/Tehran')::date;
+begin
+  if p_event_type not in ('entry','exit') then raise exception using errcode='22023',message='Invalid attendance event'; end if;
+  if not exists(select 1 from public.organization_users ou where ou.organization_id=p_organization_id and ou.user_id=p_recorded_by and ou.status='active' and ou.role in('owner','branch_manager','receptionist') and (ou.role='owner' or ou.branch_id=p_branch_id)) then raise exception using errcode='42501',message='Branch staff access required'; end if;
+  select m.* into v_member from public.members m where m.id=p_member_id and m.organization_id=p_organization_id and m.status='active' for update;
+  if not found then raise exception using errcode='P0002',message='Active member not found'; end if;
+  select a.event_type into v_last_type from public.attendance_events a where a.organization_id=p_organization_id and a.branch_id=p_branch_id and a.member_id=p_member_id order by a.occurred_at desc,a.id desc limit 1;
+  if p_event_type='entry' and v_last_type='entry' then raise exception using errcode='23514',message='Member is already inside'; end if;
+  if p_event_type='exit' and coalesce(v_last_type,'exit')<>'entry' then raise exception using errcode='23514',message='Member is not inside'; end if;
+  if p_session_id is not null then select s.* into v_session from public.pool_sessions s where s.id=p_session_id and s.organization_id=p_organization_id and s.branch_id=p_branch_id; if not found then raise exception using errcode='23503',message='Session not found'; end if; end if;
+  if p_event_type='entry' then
+    select ms.* into v_membership from public.memberships ms where ms.organization_id=p_organization_id and ms.member_id=p_member_id and ms.status='active' and ms.starts_on<=v_today and ms.ends_on>=v_today and (ms.remaining_sessions is null or ms.remaining_sessions>0) order by ms.ends_on,ms.created_at limit 1 for update;
+    if not found then raise exception using errcode='23514',message='Active membership required'; end if;
+    if v_membership.remaining_sessions is not null then update public.memberships set remaining_sessions=remaining_sessions-1,updated_at=now() where id=v_membership.id; end if;
+    if p_session_id is not null then update public.session_reservations set status='attended' where organization_id=p_organization_id and session_id=p_session_id and member_id=p_member_id and status='confirmed'; end if;
+  end if;
+  insert into public.attendance_events(organization_id,branch_id,member_id,session_id,event_type,method,recorded_by) values(p_organization_id,p_branch_id,p_member_id,p_session_id,p_event_type,'manual',p_recorded_by) returning id into v_event_id;
+  return v_event_id;
+end $$;
+revoke all on function public.record_member_attendance(uuid,uuid,uuid,uuid,text,uuid) from public,anon,authenticated;
+grant execute on function public.record_member_attendance(uuid,uuid,uuid,uuid,text,uuid) to service_role;
+
 -- Authorization helpers live outside the exposed API schema.
 create or replace function private.has_org_role(target_org_id uuid, allowed_roles text[])
 returns boolean
