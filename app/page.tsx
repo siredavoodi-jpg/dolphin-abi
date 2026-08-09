@@ -23,7 +23,7 @@ export default function Home(){
    <button className="close" onClick={()=>setMenu(false)}><X/></button>
    <div className="brand"><span><Waves/></span><div><b>دلفین آبی</b><small>DOLPHIN ABI</small></div></div>
    <label>فضای کاری</label>
-   <button className="branch"><i>م</i><span><b>شعبه مرکزی</b><small>تهران، نیاوران</small></span><ChevronDown/></button>
+   <button className="branch" onClick={()=>window.location.href="/branches"}><i>م</i><span><b>شعبه مرکزی</b><small>مدیریت شعبه‌ها</small></span><ChevronDown/></button>
    <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>ping(t+" در نسخه نمایشی آماده است")}><I/><span>{t}</span>{t==="پذیرش"&&<em>۱۲</em>}</button>)}</nav>
    <div className="sidefoot"><button onClick={()=>window.location.href="/users"}><Settings/> کاربران و دسترسی‌ها</button><div className="profile"><span>ح‌گ</span><div><b>حسین گرایلی</b><small>مدیر کل مجموعه</small></div><MoreHorizontal/></div></div>
   </aside>
