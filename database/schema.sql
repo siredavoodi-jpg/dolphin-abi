@@ -1,7 +1,7 @@
 -- Dolphin Abi — approved MVP schema draft
 -- PostgreSQL 17 / Supabase. This is a reviewable schema, not yet a migration.
 
-create extension if not exists citext;
+create extension if not exists citext with schema extensions;
 create extension if not exists pgcrypto;
 
 create schema if not exists private;
@@ -10,7 +10,7 @@ revoke all on schema private from public, anon, authenticated;
 create table public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 2 and 120),
-  slug citext not null unique check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
+  slug extensions.citext not null unique check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
   status text not null default 'active' check (status in ('active','suspended')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -20,7 +20,7 @@ create table public.branches (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null check (char_length(name) between 2 and 120),
-  code citext not null,
+  code extensions.citext not null,
   phone text,
   address text,
   capacity integer not null default 0 check (capacity >= 0),
@@ -33,7 +33,7 @@ create table public.branches (
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  username citext not null unique check (username ~ '^[a-z0-9][a-z0-9._-]{2,31}$'),
+  username extensions.citext not null unique check (username ~ '^[a-z0-9][a-z0-9._-]{2,31}$'),
   full_name text not null check (char_length(full_name) between 2 and 120),
   phone text,
   must_change_password boolean not null default true,
@@ -224,6 +224,32 @@ create index reservations_member_idx on public.session_reservations (member_id, 
 create index attendance_member_time_idx on public.attendance_events (member_id, occurred_at desc);
 create index attendance_branch_time_idx on public.attendance_events (branch_id, occurred_at desc);
 create index audit_org_time_idx on public.audit_logs (organization_id, created_at desc);
+create index attendance_org_idx on public.attendance_events (organization_id);
+create index attendance_branch_org_idx on public.attendance_events (branch_id, organization_id);
+create index attendance_member_org_idx on public.attendance_events (member_id, organization_id);
+create index attendance_session_org_idx on public.attendance_events (session_id, organization_id) where session_id is not null;
+create index attendance_recorded_by_idx on public.attendance_events (recorded_by) where recorded_by is not null;
+create index audit_actor_idx on public.audit_logs (actor_user_id) where actor_user_id is not null;
+create index members_home_branch_org_idx on public.members (home_branch_id, organization_id);
+create index members_created_by_idx on public.members (created_by);
+create index memberships_org_idx on public.memberships (organization_id);
+create index memberships_branch_org_idx on public.memberships (branch_id, organization_id);
+create index memberships_member_org_idx on public.memberships (member_id, organization_id);
+create index memberships_plan_org_idx on public.memberships (plan_id, organization_id);
+create index memberships_created_by_idx on public.memberships (created_by);
+create index org_users_branch_org_idx on public.organization_users (branch_id, organization_id) where branch_id is not null;
+create index payments_branch_org_idx on public.payment_records (branch_id, organization_id);
+create index payments_member_org_idx on public.payment_records (member_id, organization_id) where member_id is not null;
+create index payments_membership_org_idx on public.payment_records (membership_id, organization_id) where membership_id is not null;
+create index payments_received_by_idx on public.payment_records (received_by);
+create index payments_voided_by_idx on public.payment_records (voided_by) where voided_by is not null;
+create index sessions_org_idx on public.pool_sessions (organization_id);
+create index sessions_branch_org_idx on public.pool_sessions (branch_id, organization_id);
+create index sessions_created_by_idx on public.pool_sessions (created_by);
+create index reservations_org_idx on public.session_reservations (organization_id);
+create index reservations_session_org_idx on public.session_reservations (session_id, organization_id);
+create index reservations_member_org_idx on public.session_reservations (member_id, organization_id);
+create index reservations_reserved_by_idx on public.session_reservations (reserved_by);
 
 -- Authorization helpers live outside the exposed API schema.
 create or replace function private.has_org_role(target_org_id uuid, allowed_roles text[])
@@ -272,9 +298,13 @@ with check (private.has_org_role(id, array['owner']));
 
 create policy branches_read on public.branches for select to authenticated
 using (private.has_org_role(organization_id, array['owner','branch_manager','receptionist','member']));
-create policy branches_manage on public.branches for all to authenticated
+create policy branches_insert on public.branches for insert to authenticated
+with check (private.has_org_role(organization_id, array['owner']));
+create policy branches_update on public.branches for update to authenticated
 using (private.has_org_role(organization_id, array['owner']))
 with check (private.has_org_role(organization_id, array['owner']));
+create policy branches_delete on public.branches for delete to authenticated
+using (private.has_org_role(organization_id, array['owner']));
 
 create policy profiles_self_read on public.profiles for select to authenticated
 using (id = (select auth.uid()));
@@ -284,9 +314,13 @@ with check (id = (select auth.uid()));
 
 create policy org_users_read on public.organization_users for select to authenticated
 using (user_id = (select auth.uid()) or private.has_org_role(organization_id, array['owner','branch_manager']));
-create policy org_users_owner_manage on public.organization_users for all to authenticated
+create policy org_users_owner_insert on public.organization_users for insert to authenticated
+with check (private.has_org_role(organization_id, array['owner']));
+create policy org_users_owner_update on public.organization_users for update to authenticated
 using (private.has_org_role(organization_id, array['owner']))
 with check (private.has_org_role(organization_id, array['owner']));
+create policy org_users_owner_delete on public.organization_users for delete to authenticated
+using (private.has_org_role(organization_id, array['owner']));
 
 create policy members_read on public.members for select to authenticated
 using (
@@ -301,16 +335,22 @@ with check (private.has_org_role(organization_id, array['owner','branch_manager'
 
 create policy plans_read on public.membership_plans for select to authenticated
 using (private.has_org_role(organization_id, array['owner','branch_manager','receptionist','member']));
-create policy plans_manage on public.membership_plans for all to authenticated
+create policy plans_insert on public.membership_plans for insert to authenticated
+with check (private.has_org_role(organization_id, array['owner','branch_manager']));
+create policy plans_update on public.membership_plans for update to authenticated
 using (private.has_org_role(organization_id, array['owner','branch_manager']))
 with check (private.has_org_role(organization_id, array['owner','branch_manager']));
+create policy plans_delete on public.membership_plans for delete to authenticated
+using (private.has_org_role(organization_id, array['owner','branch_manager']));
 
 create policy memberships_read on public.memberships for select to authenticated
 using (
   private.has_org_role(organization_id, array['owner','branch_manager','receptionist'])
   or exists (select 1 from public.members m where m.id = member_id and m.auth_user_id = (select auth.uid()))
 );
-create policy memberships_staff_write on public.memberships for all to authenticated
+create policy memberships_staff_insert on public.memberships for insert to authenticated
+with check (private.has_org_role(organization_id, array['owner','branch_manager','receptionist']));
+create policy memberships_staff_update on public.memberships for update to authenticated
 using (private.has_org_role(organization_id, array['owner','branch_manager','receptionist']))
 with check (private.has_org_role(organization_id, array['owner','branch_manager','receptionist']));
 
@@ -327,9 +367,13 @@ with check (private.has_org_role(organization_id, array['owner','branch_manager'
 
 create policy sessions_read on public.pool_sessions for select to authenticated
 using (private.has_org_role(organization_id, array['owner','branch_manager','receptionist','member']));
-create policy sessions_manage on public.pool_sessions for all to authenticated
+create policy sessions_insert on public.pool_sessions for insert to authenticated
+with check (private.has_org_role(organization_id, array['owner','branch_manager']));
+create policy sessions_update on public.pool_sessions for update to authenticated
 using (private.has_org_role(organization_id, array['owner','branch_manager']))
 with check (private.has_org_role(organization_id, array['owner','branch_manager']));
+create policy sessions_delete on public.pool_sessions for delete to authenticated
+using (private.has_org_role(organization_id, array['owner','branch_manager']));
 
 create policy reservations_read on public.session_reservations for select to authenticated
 using (
