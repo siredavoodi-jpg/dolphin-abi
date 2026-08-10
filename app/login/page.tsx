@@ -2,7 +2,7 @@
 
 import { Eye, EyeOff, LockKeyhole, LogIn, UserRound, Waves } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { functionsUrl, supabase } from "../../lib/supabase-browser";
+import { functionsUrl, supabase, supabasePublishableKey } from "../../lib/supabase-browser";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -20,7 +20,7 @@ export default function LoginPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
+          apikey: supabasePublishableKey,
         },
         body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
       });

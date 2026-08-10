@@ -5,11 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 const url =
   process.env.NEXT_PUBLIC_SUPABASE_URL ??
   "https://zhowwkyvaakelmznvjef.supabase.co";
-const publishableKey =
+export const supabasePublishableKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
   "sb_publishable_xkXGkvX1WpxyhmuQvp7SQw_ul0CNcdd";
 
-export const supabase = createClient(url, publishableKey, {
+export const supabase = createClient(url, supabasePublishableKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
