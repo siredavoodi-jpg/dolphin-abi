@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.95.0";
-const allowedOrigins=new Set(["https://dolphin-abi-pool.gerayeli60.chatgpt.site","http://localhost:3000","http://localhost:3001"]);
+const allowedOrigins=new Set(["https://dolphin-abi-pool.gerayeli60.chatgpt.site","https://dolphin-abi.vercel.app","http://localhost:3000","http://localhost:3001"]);
 const staffRoles=new Set(["owner","branch_manager","receptionist"]);
-function cors(req:Request){const origin=req.headers.get("origin")??"";return{"Access-Control-Allow-Origin":allowedOrigins.has(origin)?origin:"https://dolphin-abi-pool.gerayeli60.chatgpt.site","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"GET, POST, PATCH, OPTIONS","Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin"}}
+function cors(req:Request){const origin=req.headers.get("origin")??"";return{"Access-Control-Allow-Origin":allowedOrigins.has(origin)?origin:"https://dolphin-abi.vercel.app","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"GET, POST, PATCH, OPTIONS","Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin"}}
 function json(req:Request,body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:cors(req)})}
 function text(value:unknown,max:number){return String(value??"").trim().slice(0,max)}
 function dateOrNull(value:unknown){const valueText=String(value??"");return /^\d{4}-\d{2}-\d{2}$/.test(valueText)?valueText:null}

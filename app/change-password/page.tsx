@@ -2,7 +2,7 @@
 
 import { CheckCircle2, KeyRound, Waves } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { functionsUrl, supabase } from "../../lib/supabase-browser";
+import { functionsUrl, supabase, supabasePublishableKey } from "../../lib/supabase-browser";
 
 export default function ChangePasswordPage() {
   const [password, setPassword] = useState("");
@@ -25,7 +25,7 @@ export default function ChangePasswordPage() {
         headers: {
           "Content-Type": "application/json",
           Authorization: "Bearer " + data.session.access_token,
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
+          apikey: supabasePublishableKey,
         },
         body: JSON.stringify({ password }),
       });
