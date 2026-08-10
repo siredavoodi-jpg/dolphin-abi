@@ -1,11 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-if (!url || !publishableKey) {
-  throw new Error("Supabase public environment variables are not configured.");
-}
+// These values identify the public Supabase project and are safe to expose in
+// the browser. Vercel environment variables can override them at any time.
+const url =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  "https://zhowwkyvaakelmznvjef.supabase.co";
+const publishableKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  "sb_publishable_xkXGkvX1WpxyhmuQvp7SQw_ul0CNcdd";
 
 export const supabase = createClient(url, publishableKey, {
   auth: {
