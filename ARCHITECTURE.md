@@ -24,7 +24,7 @@
 ## محیط Supabase
 
 - Project: Dolphin Abi
-- Project ref: `zhowwkyvaakelmznvjef`
-- Region: `eu-central-1` (Frankfurt)
+- Project ref: `slztfxrwrsnwyyrqfshc`
+- Region: `us-west-2` (بازسازی‌شده در ۶ سپتامبر ۲۰۲۶ پس از حذف پروژه قبلی)
 - PostgreSQL: 17
 - اطلاعات محرمانه و کلیدهای secret/service-role نباید در مخزن ثبت شوند.

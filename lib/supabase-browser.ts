@@ -4,10 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 // the browser. Vercel environment variables can override them at any time.
 const url =
   process.env.NEXT_PUBLIC_SUPABASE_URL ??
-  "https://zhowwkyvaakelmznvjef.supabase.co";
+  "https://slztfxrwrsnwyyrqfshc.supabase.co";
 export const supabasePublishableKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  "sb_publishable_xkXGkvX1WpxyhmuQvp7SQw_ul0CNcdd";
+  "sb_publishable_wd9qjG2TJ4n-abFjLCz8KQ_ah9CYRBC";
 
 export const supabase = createClient(url, supabasePublishableKey, {
   auth: {

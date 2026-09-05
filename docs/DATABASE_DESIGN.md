@@ -54,4 +54,4 @@ Constraint یکتای `(session_id, member_id)` از رزرو تکراری جل�
 
 ## وضعیت این سند
 
-فایل `database/schema.sql` در تاریخ ۱۴۰۵/۰۵/۱۸ روی پروژه Supabase با شناسه `zhowwkyvaakelmznvjef` اجرا و راستی‌آزمایی شد. ساختار فعلی هنوز به‌صورت migration رسمی در تاریخچه Supabase ثبت نشده است؛ پس از تثبیت bootstrap و جریان ایجاد اولین مدیر، migration تمیز از دیتابیس تولید می‌شود.
+فایل `database/schema.sql` در تاریخ ۱۴۰۵/۰۵/۱۸ روی پروژه Supabase با شناسه `slztfxrwrsnwyyrqfshc` اجرا و راستی‌آزمایی شد. ساختار فعلی هنوز به‌صورت migration رسمی در تاریخچه Supabase ثبت نشده است؛ پس از تثبیت bootstrap و جریان ایجاد اولین مدیر، migration تمیز از دیتابیس تولید می‌شود.
