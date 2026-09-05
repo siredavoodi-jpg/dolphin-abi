@@ -1,5 +1,6 @@
--- Dolphin Abi — current MVP schema snapshot
--- PostgreSQL 17 / Supabase. The canonical baseline lives in supabase/migrations.
+-- Dolphin Abi — MVP baseline migration
+-- The production database already contained this schema before migration tracking was introduced.
+-- Mark this version as applied on that existing project before pushing later migrations.
 
 create extension if not exists citext with schema extensions;
 

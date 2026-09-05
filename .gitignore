@@ -1,7 +1,9 @@
 .next/
 node_modules/
 .pnpm-store/
+.npm-cache/
 *.log
 .env*
 work/
 outputs/
+*.tsbuildinfo

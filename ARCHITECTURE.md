@@ -1,4 +1,4 @@
-# معماری پیشنهادی — مرحله تحلیل
+# معماری MVP — وضعیت فعلی
 
 ## گزینه‌های چندمستاجری
 1. **Shared schema + tenant_id (پیشنهاد MVP):** اقتصادی و ساده‌تر؛ نیازمند RLS دقیق.
@@ -7,10 +7,19 @@
 
 گزینه اول در تاریخ ۱۴۰۵/۰۵/۱۸ تأیید شد: دیتابیس مشترک با `organization_id` و RLS.
 
-## جداول اولیه
-`organizations`, `branches`, `profiles`, `staff_roles`, `members`, `memberships`, `plans`, `cards`, `wallets`, `wallet_transactions`, `sessions`, `session_reservations`, `attendance_events`, `tickets`, `orders`, `payments`, `products`, `inventory_movements`, `audit_logs`, `subscriptions`.
+## جداول فعال MVP
+`organizations`, `branches`, `profiles`, `organization_users`, `members`, `membership_plans`, `memberships`, `payment_records`, `pool_sessions`, `session_reservations`, `attendance_events`, `audit_logs`.
+
+عملیات دارای سطح دسترسی از طریق Supabase Edge Functions انجام می‌شود. رابط کاربری فقط publishable key را دریافت می‌کند و هیچ secret/service-role key در مرورگر یا مخزن قرار نمی‌گیرد.
 
 اصول: UUID، زمان UTC، مبلغ صحیح، تراکنش مالی append-only، Supabase Auth و Postgres RLS. فاز اول بدون درگاه بانکی است و حساب عضو توسط ادمین با رمز موقت ایجاد می‌شود.
+
+## استقرار
+
+- رابط کاربری: Next.js روی Vercel
+- پایگاه داده و احراز هویت: Supabase در فرانکفورت
+- دامنه نسخه آزمایشی: `https://dolphin-abi.vercel.app`
+- خط مبنای دیتابیس: `supabase/migrations/*_baseline_mvp_schema.sql`
 
 ## محیط Supabase
 
