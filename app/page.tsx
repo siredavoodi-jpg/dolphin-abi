@@ -1,55 +1,56 @@
 "use client";
-import {Bell,CalendarDays,ChevronDown,CircleDollarSign,Clock3,CreditCard,LayoutDashboard,Menu,Search,Settings,ShoppingBag,TrendingUp,UserPlus,Users,Waves,X,ArrowUpLeft,Check,MoreHorizontal,WalletCards,ScanLine,Ticket,PackageOpen,BarChart3} from "lucide-react";
-import {useState} from "react";
-
+import {Bell,CalendarDays,ChevronDown,CircleDollarSign,Clock3,CreditCard,LayoutDashboard,Menu,Search,Settings,ShoppingBag,TrendingUp,UserPlus,Users,Waves,X,ArrowUpLeft,Check,MoreHorizontal,WalletCards,ScanLine,Ticket,PackageOpen,BarChart3,Loader2,DoorOpen,RefreshCw} from "lucide-react";
+import {useCallback,useEffect,useState} from "react";import {functionsUrl,supabase} from "../lib/supabase-browser";
 const nav=[[LayoutDashboard,"نمای کلی"],[Users,"اعضا"],[ScanLine,"پذیرش"],[CreditCard,"عضویت‌ها"],[WalletCards,"پرداخت‌ها"],[CalendarDays,"سانس‌ها"],[ShoppingBag,"فروشگاه"],[PackageOpen,"انبار"],[BarChart3,"گزارش‌ها"]] as const;
-const sessions=[
-  ["۰۸:۰۰ – ۱۰:۰۰","شنای آزاد بانوان","سارا احمدی","۳۹ / ۵۰","۷۸٪","b"],
-  ["۱۰:۳۰ – ۱۲:۰۰","آموزش کودکان","امیر رضایی","۲۳ / ۲۵","۹۲٪","o"],
-  ["۱۵:۰۰ – ۱۷:۰۰","شنای آزاد آقایان","نیما کاویانی","۲۷ / ۵۰","۵۴٪","g"]
-];
-const activity=[
-  [UserPlus,"عضو جدید ثبت شد","نگار محمدی · عضویت سه‌ماهه","۴ دقیقه پیش","v"],
-  [WalletCards,"کیف پول شارژ شد","علی کریمی · ۵۰۰٬۰۰۰ تومان","۱۲ دقیقه پیش","b"],
-  [ScanLine,"ورود با کارت RFID","مهسا یوسفی · سانس بانوان","۱۸ دقیقه پیش","g"],
-  [Ticket,"بلیت تک‌جلسه‌ای فروخته شد","پذیرش شعبه مرکزی","۲۵ دقیقه پیش","o"]
-] as const;
+type Summary={stats:{activeMembers:number,todayRevenue:number,todayRevenueCount:number,todayVisits:number,currentlyInside:number,todaySessions:number},sessions:{id:string,title:string,starts_at:string,ends_at:string,capacity:number,status:string}[],reservations:Record<string,number>,revenue7d:{day:string,amount:number}[],recentPayments:{id:string,amount:number,method:string,paid_at:string,member:string}[],activity:{id:number,action:string,entity_type:string,details?:Record<string,unknown>,created_at:string,actor:string}[]};
+const fa=(n:number)=>n.toLocaleString("fa-IR"),money=(n:number)=>n>=1e9?(n/1e9).toLocaleString("fa-IR",{maximumFractionDigits:1})+" میلیارد":n>=1e6?(n/1e6).toLocaleString("fa-IR",{maximumFractionDigits:1})+" م":fa(n),hour=(x:string)=>new Intl.DateTimeFormat("fa-IR",{hour:"2-digit",minute:"2-digit"}).format(new Date(x)),rel=(x:string)=>{const m=Math.round((Date.now()-new Date(x).getTime())/60000);return m<60?`${fa(Math.max(m,1))} دقیقه پیش`:m<1440?`${fa(Math.round(m/60))} ساعت پیش`:`${fa(Math.round(m/1440))} روز پیش`},dayNames=["یکشنبه","دوشنبه","سه‌شنبه","چهارشنبه","پنج‌شنبه","جمعه","شنبه"],dayName=(iso:string)=>dayNames[new Date(iso+"T00:00:00Z").getUTCDay()];
 
 export default function Home(){
- const [menu,setMenu]=useState(false); const [toast,setToast]=useState("");
+ const [menu,setMenu]=useState(false);const [toast,setToast]=useState("");const [sum,setSum]=useState<Summary|null>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState("");const [name,setName]=useState("");const [today,setToday]=useState("");
  const ping=(s:string)=>{setToast(s);setTimeout(()=>setToast(""),2200)};
+ const load=useCallback(async()=>{setLoading(true);setError("");try{const {data}=await supabase.auth.getSession(),r=await fetch(functionsUrl+"/dashboard-summary",{headers:{Authorization:`Bearer ${data.session?.access_token??""}`}}),j=await r.json();if(!r.ok)throw new Error(j.error??"خطا در ارتباط با سرور");setSum(j)}catch(e){setError(e instanceof Error?e.message:"خطا در دریافت داشبورد")}finally{setLoading(false)}},[]);
+ useEffect(()=>{void load();setToday(new Intl.DateTimeFormat("fa-IR",{dateStyle:"full"}).format(new Date()));void supabase.auth.getUser().then(async({data})=>{if(data.user){const {data:p}=await supabase.from("profiles").select("full_name").eq("id",data.user.id).maybeSingle();setName(p?.full_name??"")}})},[]);
+ const stats=sum?.stats,week=sum?.revenue7d??[],weekTotal=week.reduce((s,x)=>s+x.amount,0),maxWeek=Math.max(...week.map(x=>x.amount),1),activeSession=sum?.sessions.find(x=>x.status==="scheduled"&&new Date(x.starts_at)<=new Date()&&new Date(x.ends_at)>=new Date())??sum?.sessions.find(x=>x.status==="scheduled");
+ const activityIcons:Record<string,[typeof UserPlus,string]>={member:[UserPlus,"v"],payment:[WalletCards,"b"],attendance:[ScanLine,"g"],membership:[Ticket,"o"]};
  return <main className="shell">
   <aside className={menu?"side open":"side"}>
    <button className="close" onClick={()=>setMenu(false)}><X/></button>
    <div className="brand"><span><Waves/></span><div><b>دلفین آبی</b><small>DOLPHIN ABI</small></div></div>
    <label>فضای کاری</label>
    <button className="branch" onClick={()=>window.location.href="/branches"}><i>م</i><span><b>شعبه مرکزی</b><small>مدیریت شعبه‌ها</small></span><ChevronDown/></button>
-   <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>t==="اعضا"?window.location.href="/members":t==="پذیرش"?window.location.href="/attendance":t==="عضویت‌ها"?window.location.href="/memberships":t==="پرداخت‌ها"?window.location.href="/payments":t==="سانس‌ها"?window.location.href="/sessions":ping(t+" در نسخه نمایشی آماده است")}><I/><span>{t}</span>{t==="پذیرش"&&<em>۱۲</em>}</button>)}</nav>
-   <div className="sidefoot"><button onClick={()=>window.location.href="/users"}><Settings/> کاربران و دسترسی‌ها</button><div className="profile"><span>ح‌گ</span><div><b>حسین گرایلی</b><small>مدیر کل مجموعه</small></div><MoreHorizontal/></div></div>
+   <nav><label>مدیریت</label>{nav.map(([I,t],n)=><button key={t} className={n===0?"active":""} onClick={()=>t==="اعضا"?window.location.href="/members":t==="پذیرش"?window.location.href="/attendance":t==="عضویت‌ها"?window.location.href="/memberships":t==="پرداخت‌ها"?window.location.href="/payments":t==="سانس‌ها"?window.location.href="/sessions":ping(t+" به‌زودی در نسخه بعدی فعال می‌شود")}><I/><span>{t}</span>{t==="پذیرش"&&sum&&<em>{fa(sum.stats.currentlyInside)}</em>}</button>)}</nav>
+   <div className="sidefoot"><button onClick={()=>window.location.href="/users"}><Settings/> کاربران و دسترسی‌ها</button><div className="profile"><span>{name?name.slice(0,1):"؟"}</span><div><b>{name||"کاربر"}</b><small>مدیریت مجموعه</small></div><MoreHorizontal/></div></div>
   </aside>
   {menu&&<div className="shade" onClick={()=>setMenu(false)}/>}
   <section className="content">
-   <header><button className="burger" onClick={()=>setMenu(true)}><Menu/></button><div className="search"><Search/><input placeholder="جستجوی عضو، کارت یا فاکتور..."/><kbd>⌘ K</kbd></div><div className="headact"><button onClick={()=>ping("۳ اعلان جدید دارید")}><Bell/><i/></button><span><CalendarDays/> یکشنبه، ۱۸ مرداد ۱۴۰۵</span></div></header>
+   <header><button className="burger" onClick={()=>setMenu(true)}><Menu/></button><div className="search"><Search/><input placeholder="جستجوی عضو، کارت یا فاکتور..."/><kbd>⌘ K</kbd></div><div className="headact"><button onClick={()=>ping("اعلان جدیدی ندارید")}><Bell/><i/></button><span><CalendarDays/> {today}</span></div></header>
    <div className="dash">
-    <div className="title"><div><small>داشبورد مدیریت</small><h1>سلام حسین، روز خوبی داشته باشی 👋</h1><p>خلاصه عملکرد امروز مجموعه را اینجا می‌بینی.</p></div><button onClick={()=>ping("فرم ثبت عضو جدید آماده شد")}><UserPlus/> ثبت عضو جدید</button></div>
+    <div className="title"><div><small>داشبورد مدیریت</small><h1>سلام {name||"کاربر"}، روز خوبی داشته باشی 👋</h1><p>خلاصه عملکرد امروز مجموعه را اینجا می‌بینی.</p></div><div style={{display:"flex",gap:8}}><button className="refresh" onClick={()=>void load()}><RefreshCw className={loading?"spin":""}/></button><button onClick={()=>window.location.href="/members"}><UserPlus/> ثبت عضو جدید</button></div></div>
+    {loading&&!sum?<div className="dash-loading"><Loader2 className="spin"/> در حال بارگذاری آمار...</div>:error?<div className="dash-error"><p>{error}</p><button onClick={()=>void load()}>تلاش دوباره</button></div>:
+    <>
     <section className="stats">
-     <Stat icon={Users} title="اعضای فعال" value="۱٬۲۸۴" diff="۸٫۲٪" cls="v"/>
-     <Stat icon={CircleDollarSign} title="درآمد امروز" value="۲۴٫۸ م" diff="۱۲٫۵٪" cls="b"/>
-     <Stat icon={ScanLine} title="مراجعه امروز" value="۳۱۸" diff="۶٫۴٪" cls="g"/>
-     <Stat icon={WalletCards} title="اعتبار کیف پول‌ها" value="۱۸۶٫۲ م" diff="۳٫۱٪" cls="o"/>
+     <Stat icon={Users} title="اعضای فعال" value={fa(stats?.activeMembers??0)} sub="مجموعه شما" cls="v"/>
+     <Stat icon={CircleDollarSign} title="درآمد امروز" value={money(stats?.todayRevenue??0)} sub={`${fa(stats?.todayRevenueCount??0)} پرداخت امروز`} cls="b"/>
+     <Stat icon={ScanLine} title="مراجعه امروز" value={fa(stats?.todayVisits??0)} sub={`${fa(stats?.currentlyInside??0)} نفر داخل مجموعه`} cls="g"/>
+     <Stat icon={CalendarDays} title="سانس‌های امروز" value={fa(stats?.todaySessions??0)} sub={`${fa(sum?.sessions.filter(x=>x.status==="scheduled").length??0)} سانس فعال`} cls="o"/>
     </section>
     <section className="mid">
-     <article className="card chart"><Head title="گزارش درآمد" sub="درآمد ۷ روز گذشته"/><div className="sum"><b>۱۴۸٬۶۰۰٬۰۰۰</b><span>تومان</span><em><TrendingUp/> ۱۱٫۴٪</em></div><div className="graph"><div className="axis"><span>۳۰ م</span><span>۲۰ م</span><span>۱۰ م</span><span>۰</span></div><div className="bars">{[48,62,53,76,88,64,82].map((h,i)=><div className="barcol" key={i}><i className={i===6?"now h"+h:"h"+h}>{i===6&&<b>۲۴٫۸ م</b>}</i><small>{["دوشنبه","سه‌شنبه","چهارشنبه","پنج‌شنبه","جمعه","شنبه","امروز"][i]}</small></div>)}</div></div></article>
-     <article className="card occupy"><Head title="ظرفیت فعلی استخر" sub="سانس فعال · بانوان"/><div className="ring"><span><b>۶۸٪</b><small>تکمیل ظرفیت</small></span></div><div className="nums"><span><b>۳۴</b><small>حاضر</small></span><i/><span><b>۵۰</b><small>ظرفیت کل</small></span><i/><span><b>۱۶</b><small>ظرفیت خالی</small></span></div><div className="timer"><Clock3/><span><b>پایان سانس</b><small>۱۱:۳۰ · ۳۷ دقیقه دیگر</small></span><button onClick={()=>ping("کنترل ورود آماده است")}>کنترل ورود</button></div></article>
+     <article className="card chart"><Head title="گزارش درآمد" sub="درآمد ۷ روز گذشته (پرداخت‌های حضوری)"/><div className="sum"><b>{weekTotal.toLocaleString("fa-IR")}</b><span>ریال</span><em><TrendingUp/> ۷ روز</em></div><div className="graph"><div className="axis"><span>{money(maxWeek)}</span><span>{money(maxWeek/2)}</span><span>۰</span></div><div className="bars">{week.map((d,i)=>{const h=Math.min(90,Math.max(3,Math.round(d.amount/maxWeek*90))),last=i===week.length-1;return <div className="barcol" key={d.day}><i className={last?"now":""} style={{height:h+"%"}}>{last&&<b>{money(d.amount)}</b>}</i><small>{last?"امروز":dayName(d.day)}</small></div>})}</div></div></article>
+     <article className="card occupy"><Head title="وضعیت سانس فعال" sub={activeSession?activeSession.title:"سانس فعالی نیست"}>{activeSession?<><div className="ring" style={{background:`conic-gradient(#6a52da ${Math.min(100,Math.round(((sum?.reservations[activeSession.id]??0)/activeSession.capacity)*100))}%,#ecebfb 0)`}}><span><b>{fa(Math.min(100,Math.round(((sum?.reservations[activeSession.id]??0)/activeSession.capacity)*100)))}٪</b><small>رزرو شده</small></span></div><div className="nums"><span><b>{fa(sum?.reservations[activeSession.id]??0)}</b><small>رزرو</small></span><i/><span><b>{fa(activeSession.capacity)}</b><small>ظرفیت کل</small></span><i/><span><b>{fa(Math.max(0,activeSession.capacity-(sum?.reservations[activeSession.id]??0)))}</b><small>ظرفیت خالی</small></span></div><div className="timer"><Clock3/><span><b>پایان سانس</b><small>{hour(activeSession.ends_at)}</small></span><button onClick={()=>window.location.href="/attendance"}>کنترل ورود</button></div></>:<div className="empty-block"><Clock3/><p>در ساعت فعلی سانس فعالی وجود ندارد.</p></div>}</Head></article>
     </section>
     <section className="bottom">
-     <article className="card list"><Head title="سانس‌های امروز" sub="برنامه و ظرفیت سانس‌های پیش‌رو"/>{sessions.map(s=><div className="session" key={s[0]}><span className={"time "+s[5]}><Clock3/>{s[0]}</span><div><b>{s[1]}</b><small>مربی: {s[2]}</small></div><div className="cap"><span>{s[3]} نفر</span><i><b className={s[5]} style={{width:s[4]}}/></i></div><MoreHorizontal/></div>)}</article>
-     <article className="card list"><Head title="فعالیت‌های اخیر" sub="آخرین رویدادهای سیستم"/>{activity.map(([I,t,s,tm,c])=><div className="activity" key={t}><span className={c}><I/></span><div><b>{t}</b><small>{s}</small></div><time>{tm}</time></div>)}</article>
+     <article className="card list"><Head title="سانس‌های امروز" sub="برنامه و ظرفیت سانس‌ها"/>{sum?.sessions.length?sum.sessions.map(s=>{const r=sum.reservations[s.id]??0;return <div className="session" key={s.id}><span className={"time "+(s.status==="scheduled"?"g":s.status==="cancelled"?"o":"b")}><Clock3/>{hour(s.starts_at)} – {hour(s.ends_at)}</span><div><b>{s.title}</b><small>{s.status==="cancelled"?"لغو شده":s.status==="completed"?"برگزار شد":"در انتظار برگزاری"}</small></div><div className="cap"><span>{fa(r)} / {fa(s.capacity)} نفر</span><i><b style={{width:Math.round(r/s.capacity*100)+"%"}}/></i></div><MoreHorizontal/></div>}):<div className="empty-block"><CalendarDays/><p>امروز سانسی تعریف نشده است.</p></div>}</article>
+     <article className="card list"><Head title="فعالیت‌های اخیر" sub="پرداخت‌های امروز و آخرین رویدادها"/>
+      {sum?.recentPayments.map(p=><div className="activity" key={p.id}><span className="b"><WalletCards/></span><div><b>پرداخت حضوری ثبت شد</b><small>{p.member} · {(p.amount/10).toLocaleString("fa-IR")} تومان · {p.method==="cash"?"نقد":p.method==="pos"?"کارت‌خوان":"انتقال بانکی"}</small></div><time>{rel(p.paid_at)}</time></div>)}
+      {sum?.activity.filter(a=>["member.create","membership.create","attendance.entry"].includes(a.action)).map(a=>{const [I,c]=activityIcons[a.action.split(".")[0]]??activityIcons.membership;return <div className="activity" key={a.id}><span className={c}><I/></span><div><b>{a.action==="member.create"?"عضو جدید ثبت شد":a.action==="membership.create"?"عضویت صادر شد":"ورود عضو ثبت شد"}</b><small>{typeof a.details?.name==="string"?a.details.name:a.entity_type} · {a.actor}</small></div><time>{rel(a.created_at)}</time></div>})}
+      {!sum?.recentPayments.length&&!sum?.activity.length&&<div className="empty-block"><BarChart3/><p>هنوز فعالیتی ثبت نشده است.</p></div>}
+     </article>
     </section>
+    </>}
    </div>
   </section>
   {toast&&<div className="toast"><Check/>{toast}</div>}
  </main>
 }
-function Head({title,sub}:{title:string,sub:string}){return <div className="cardhead"><div><h2>{title}</h2><p>{sub}</p></div><a>مشاهده همه <ArrowUpLeft/></a></div>}
-function Stat({icon:I,title,value,diff,cls}:{icon:typeof Users,title:string,value:string,diff:string,cls:string}){return <article className="card stat"><span className={cls}><I/></span><MoreHorizontal/><p>{title}</p><h2>{value}<small> تومان</small></h2><footer><em><TrendingUp/>{diff}</em><span>نسبت به دوره قبل</span></footer></article>}
+function Head({title,sub,children}:{title:string,sub:string,children?:React.ReactNode}){return <div className="cardhead"><div><h2>{title}</h2><p>{sub}</p></div>{children??<a href={sub.includes("سانس")?"/sessions":"/payments"}>مشاهده همه <ArrowUpLeft/></a>}</div>}
+function Stat({icon:I,title,value,sub,cls}:{icon:typeof Users,title:string,value:string,sub:string,cls:string}){return <article className="card stat"><span className={cls}><I/></span><MoreHorizontal/><p>{title}</p><h2>{value}<small> {title==="درآمد امروز"?"تومان":""}</small></h2><footer><em>{sub}</em></footer></article>}
