@@ -67,7 +67,7 @@ Deno.serve(async (req: Request) => {
       if (profileError) throw profileError;
       const { error: membershipError } = await admin.from("organization_users").insert({ organization_id: owner.organization_id, user_id: createdUserId, role, branch_id: branchId, status: "active" });
       if (membershipError) throw membershipError;
-      return json(req, { ok: true, user_id: createdUserId, username, temporary_password: password }, 201);
+      await admin.from("audit_logs").insert({organization_id:owner.organization_id,actor_user_id:authData.user.id,action:"user.create",entity_type:"profiles",entity_id:createdUserId,details:{username}});return json(req, { ok: true, user_id: createdUserId, username, temporary_password: password }, 201);
     } catch {
       if (createdUserId) await admin.auth.admin.deleteUser(createdUserId);
       return json(req, { error: "Unable to create user" }, 500);

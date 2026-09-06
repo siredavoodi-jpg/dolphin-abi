@@ -77,7 +77,7 @@ Deno.serve(async(req:Request)=>{
   const {data,error}=await admin.from("members").insert({organization_id:organizationId,home_branch_id:branchId,full_name:fullName,phone,national_id:nationalId,birth_date:birthDate,emergency_phone:emergencyPhone,status:"active",notes,created_by:authData.user.id}).select("id,member_number").single();
   if(error?.code==="23505")return json(req,{error:"National ID already exists"},409);
   if(error||!data)return json(req,{error:"Unable to create member"},500);
-  return json(req,{ok:true,id:data.id,member_number:data.member_number},201);
+  await admin.from("audit_logs").insert({organization_id:organizationId,actor_user_id:authData.user.id,action:"member.create",entity_type:"members",entity_id:data.id,details:{member_number:data.member_number}});return json(req,{ok:true,id:data.id,member_number:data.member_number},201);
  }
 
  if(req.method==="PATCH"){
@@ -88,7 +88,7 @@ Deno.serve(async(req:Request)=>{
   if(body.action==="set_status"){
    const status=["active","inactive","blocked"].includes(body.status)?body.status:"inactive";
    const {error}=await admin.from("members").update({status}).eq("id",memberId).eq("organization_id",organizationId);if(error)return json(req,{error:"Unable to update status"},500);
-   return json(req,{ok:true,status});
+   await admin.from("audit_logs").insert({organization_id:organizationId,actor_user_id:authData.user.id,action:"member.status",entity_type:"members",entity_id:memberId,details:{status}});return json(req,{ok:true,status});
   }
   if(body.action==="update"){
    const fullName=text(body.full_name,120),phone=text(body.phone,30)||null,nationalId=text(body.national_id,20)||null,birthDate=dateOrNull(body.birth_date),emergencyPhone=text(body.emergency_phone,30)||null,notes=text(body.notes,1000)||null,branchId=text(body.home_branch_id,50);
@@ -99,7 +99,7 @@ Deno.serve(async(req:Request)=>{
    const {error}=await admin.from("members").update({home_branch_id:branchId,full_name:fullName,phone,national_id:nationalId,birth_date:birthDate,emergency_phone:emergencyPhone,notes}).eq("id",memberId).eq("organization_id",organizationId);
    if(error?.code==="23505")return json(req,{error:"National ID already exists"},409);
    if(error)return json(req,{error:"Unable to update member"},500);
-   return json(req,{ok:true});
+   await admin.from("audit_logs").insert({organization_id:organizationId,actor_user_id:authData.user.id,action:"member.update",entity_type:"members",entity_id:memberId,details:{}});return json(req,{ok:true});
   }
   return json(req,{error:"Unknown action"},400);
  }

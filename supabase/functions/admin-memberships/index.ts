@@ -28,7 +28,7 @@ Deno.serve(async(req:Request)=>{
    const name=txt(body.name,120),duration=Number(body.duration_days),limit=body.session_limit==null||body.session_limit===""?null:Number(body.session_limit),price=Number(body.price_amount);
    if(name.length<2||!Number.isInteger(duration)||duration<1||duration>3650||(limit!==null&&(!Number.isInteger(limit)||limit<1||limit>10000))||!Number.isSafeInteger(price)||price<0)return json(req,{error:"Invalid plan data"},400);
    const {data,error}=await admin.from("membership_plans").insert({organization_id:org,name,duration_days:duration,session_limit:limit,price_amount:price,currency:"IRR",is_active:true}).select("id").single();
-   if(error?.code==="23505")return json(req,{error:"Plan name already exists"},409);if(error||!data)return json(req,{error:"Unable to create plan"},500);return json(req,{ok:true,id:data.id},201);
+   if(error?.code==="23505")return json(req,{error:"Plan name already exists"},409);await admin.from("audit_logs").insert({organization_id:org,actor_user_id:auth.user.id,action:"plan.create",entity_type:"membership_plans",entity_id:data.id,details:{}});if(error||!data)return json(req,{error:"Unable to create plan"},500);return json(req,{ok:true,id:data.id},201);
   }
   if(body.type==="membership"){
    const memberId=txt(body.member_id,50),planId=txt(body.plan_id,50),branchId=txt(body.branch_id,50),starts=validDate(body.starts_on);
@@ -39,7 +39,7 @@ Deno.serve(async(req:Request)=>{
    const {count}=await admin.from("memberships").select("id",{count:"exact",head:true}).eq("organization_id",org).eq("member_id",memberId).in("status",["active","pending"]).gte("ends_on",starts);
    if((count??0)>0)return json(req,{error:"Member already has an overlapping membership"},409);
    const {data,error}=await admin.from("memberships").insert({organization_id:org,branch_id:branchId,member_id:memberId,plan_id:planId,starts_on:starts,ends_on:ends,remaining_sessions:plan.session_limit,status:"pending",created_by:a.user.id}).select("id,ends_on").single();
-   if(error||!data)return json(req,{error:"Unable to issue membership"},500);return json(req,{ok:true,id:data.id,ends_on:data.ends_on},201);
+   await admin.from("audit_logs").insert({organization_id:org,actor_user_id:auth.user.id,action:"membership.issue",entity_type:"memberships",entity_id:data.id,details:{}});if(error||!data)return json(req,{error:"Unable to issue membership"},500);return json(req,{ok:true,id:data.id,ends_on:data.ends_on},201);
   }
   return json(req,{error:"Unknown create type"},400);
  }
@@ -53,7 +53,7 @@ Deno.serve(async(req:Request)=>{
    const {error}=await admin.from("membership_plans").update({name,duration_days:duration,session_limit:limit,price_amount:price}).eq("id",id).eq("organization_id",org);if(error?.code==="23505")return json(req,{error:"Plan name already exists"},409);if(error)return json(req,{error:"Unable to update plan"},500);return json(req,{ok:true});
   }
   if(body.type==="membership"&&body.action==="cancel"){
-   const id=txt(body.membership_id,50);let q=admin.from("memberships").update({status:"cancelled"}).eq("id",id).eq("organization_id",org).in("status",["active","pending"]);if(scope)q=q.eq("branch_id",scope);const {error}=await q;if(error)return json(req,{error:"Unable to cancel membership"},500);return json(req,{ok:true});
+   const id=txt(body.membership_id,50);let q=admin.from("memberships").update({status:"cancelled"}).eq("id",id).eq("organization_id",org).in("status",["active","pending"]);if(scope)q=q.eq("branch_id",scope);const {error}=await q;await admin.from("audit_logs").insert({organization_id:org,actor_user_id:auth.user.id,action:"membership.cancel",entity_type:"memberships",entity_id:id,details:{}});if(error)return json(req,{error:"Unable to cancel membership"},500);return json(req,{ok:true});
   }
   return json(req,{error:"Unknown action"},400);
  }

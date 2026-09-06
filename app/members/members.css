@@ -68,3 +68,20 @@ a.member-link:hover b{color:#603bb5;text-decoration:underline}
 .tenant-user>button svg{width:13px}
 .tenant-user>button:disabled{opacity:.5}
 .tenants-detail-modal{width:min(560px,96vw)}
+
+.card-flex{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.card-flex h2{margin:0}
+.csv-button{border:1px solid #e2d8f7;background:#f8f5ff;color:#6a4bc9;border-radius:8px;padding:7px 11px;font-size:11px;font-weight:700;font-family:inherit;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.csv-button svg{width:14px}
+.report-bars{display:flex;align-items:flex-end;gap:3px;height:170px;padding-top:8px;border-bottom:1px solid #edf0f4;background:repeating-linear-gradient(to bottom,#fff 0,#fff 42px,#f4f5f8 43px)}
+.report-barcol{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.report-barcol i{width:100%;max-width:22px;background:linear-gradient(#8f7cf0,#6a52da);border-radius:4px 4px 2px 2px;display:block}
+.report-barcol small{font-size:8px;color:#929aaa}
+.member-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.member-stat-grid>div{background:#faf9fc;border-radius:10px;padding:11px;text-align:center}
+.member-stat-grid b{display:block;font-size:17px}
+.member-stat-grid small{font-size:9px;color:#8b8495}
+.occupancy-cell{display:flex;align-items:center;gap:8px;min-width:130px}
+.occupancy-cell i{flex:1;height:5px;background:#edf0f4;border-radius:4px;overflow:hidden;display:block}
+.occupancy-cell b{height:100%;display:block;background:#3776e7}
+.occupancy-cell small{font-size:10px;color:#8992a1;white-space:nowrap}
