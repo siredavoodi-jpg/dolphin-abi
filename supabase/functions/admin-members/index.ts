@@ -19,6 +19,40 @@ Deno.serve(async(req:Request)=>{
  if(!isOwner&&!scopedBranch)return json(req,{error:"Branch access required"},403);
 
  if(req.method==="GET"){
+  const url=new URL(req.url),detailId=url.searchParams.get("id")??"";
+  if(detailId){
+   const {data:member}=await admin.from("members").select("id,home_branch_id,member_number,full_name,phone,national_id,birth_date,emergency_phone,status,notes,created_by,created_at,updated_at").eq("organization_id",organizationId).eq("id",detailId).maybeSingle();
+   if(!member)return json(req,{error:"Member not found"},404);
+   if(scopedBranch&&member.home_branch_id!==scopedBranch)return json(req,{error:"Branch access denied"},403);
+   const [membershipRes,paymentRes,reservationRes,attendanceRes,branchRes,planRes]=await Promise.all([
+    admin.from("memberships").select("id,plan_id,status,starts_on,ends_on,remaining_sessions,created_at").eq("organization_id",organizationId).eq("member_id",detailId).order("created_at",{ascending:false}),
+    admin.from("payment_records").select("id,branch_id,membership_id,amount,method,status,reference_number,received_by,paid_at,voided_at,void_reason").eq("organization_id",organizationId).eq("member_id",detailId).order("paid_at",{ascending:false}),
+    admin.from("session_reservations").select("id,session_id,status,reserved_at,cancelled_at").eq("organization_id",organizationId).eq("member_id",detailId).order("reserved_at",{ascending:false}).limit(100),
+    admin.from("attendance_events").select("id,branch_id,session_id,event_type,occurred_at").eq("organization_id",organizationId).eq("member_id",detailId).order("occurred_at",{ascending:false}).limit(200),
+    admin.from("branches").select("id,name,status").eq("organization_id",organizationId).order("name"),
+    admin.from("membership_plans").select("id,name").eq("organization_id",organizationId)
+   ]);
+   const mErr=membershipRes.error||paymentRes.error||reservationRes.error||attendanceRes.error||branchRes.error||planRes.error;
+   if(mErr)return json(req,{error:"Unable to load member detail"},500);
+   const planMap=new Map((planRes.data??[]).map(plan=>[plan.id,plan.name]));
+   const sessionIds=[...new Set([...(reservationRes.data??[]).map(x=>x.session_id),...(attendanceRes.data??[]).map(x=>x.session_id).filter(Boolean)])] as string[];
+   const {data:sessions}=sessionIds.length?await admin.from("pool_sessions").select("id,title,starts_at,ends_at").in("id",sessionIds):{data:[]};
+   const sessionMap=new Map((sessions??[]).map(x=>[x.id,x]));
+   const receiverIds=[...new Set((paymentRes.data??[]).map(x=>x.received_by))];
+   const {data:receivers}=receiverIds.length?await admin.from("profiles").select("id,full_name").in("id",receiverIds):{data:[]};
+   const receiverMap=new Map((receivers??[]).map(x=>[x.id,x.full_name]));
+   const creatorId=member.created_by;
+   const {data:creator}=creatorId?await admin.from("profiles").select("id,full_name").eq("id",creatorId).maybeSingle():{data:null};
+   return json(req,{
+    member,branches:branchRes.data??[],
+    memberships:(membershipRes.data??[]).map(x=>({...x,plan_name:planMap.get(x.plan_id)??null})),
+    payments:(paymentRes.data??[]).map(x=>({...x,receiver_name:receiverMap.get(x.received_by)??null})),
+    reservations:(reservationRes.data??[]).map(x=>({...x,session:sessionMap.get(x.session_id)??null})),
+    attendance:(attendanceRes.data??[]).map(x=>({...x,session:sessionMap.get(x.session_id)??null})),
+    created_by_name:creator?.full_name??null,
+    access:{role:access.role,branch_id:access.branch_id}
+   });
+  }
   let branchQuery=admin.from("branches").select("id,name,status").eq("organization_id",organizationId).order("name");
   let memberQuery=admin.from("members").select("id,home_branch_id,member_number,full_name,phone,national_id,birth_date,emergency_phone,status,notes,created_at,updated_at").eq("organization_id",organizationId).order("created_at",{ascending:false}).limit(500);
   if(scopedBranch){branchQuery=branchQuery.eq("id",scopedBranch);memberQuery=memberQuery.eq("home_branch_id",scopedBranch)}

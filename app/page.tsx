@@ -23,7 +23,7 @@ export default function Home(){
   </aside>
   {menu&&<div className="shade" onClick={()=>setMenu(false)}/>}
   <section className="content">
-   <header><button className="burger" onClick={()=>setMenu(true)}><Menu/></button><div className="search"><Search/><input placeholder="جستجوی عضو، کارت یا فاکتور..."/><kbd>⌘ K</kbd></div><div className="headact"><button onClick={()=>ping("اعلان جدیدی ندارید")}><Bell/><i/></button><span><CalendarDays/> {today}</span></div></header>
+   <header><button className="burger" onClick={()=>setMenu(true)}><Menu/></button><div className="search"><Search/><input placeholder="جستجوی عضو بر اساس نام، تلفن، کد ملی یا شماره..." onKeyDown={e=>{if(e.key==="Enter"){const v=(e.target as HTMLInputElement).value.trim();if(v)window.location.href=`/members?q=${encodeURIComponent(v)}`}}}/><kbd>⏎ اعضا</kbd></div><div className="headact"><button onClick={()=>ping("اعلان جدیدی ندارید")}><Bell/><i/></button><span><CalendarDays/> {today}</span></div></header>
    <div className="dash">
     <div className="title"><div><small>داشبورد مدیریت</small><h1>سلام {name||"کاربر"}، روز خوبی داشته باشی 👋</h1><p>خلاصه عملکرد امروز مجموعه را اینجا می‌بینی.</p></div><div style={{display:"flex",gap:8}}><button className="refresh" onClick={()=>void load()}><RefreshCw className={loading?"spin":""}/></button><button onClick={()=>window.location.href="/members"}><UserPlus/> ثبت عضو جدید</button></div></div>
     {loading&&!sum?<div className="dash-loading"><Loader2 className="spin"/> در حال بارگذاری آمار...</div>:error?<div className="dash-error"><p>{error}</p><button onClick={()=>void load()}>تلاش دوباره</button></div>:

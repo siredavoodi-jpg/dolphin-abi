@@ -11,6 +11,23 @@ Deno.serve(async(req:Request)=>{
  const {data:access}=await admin.from("organization_users").select("organization_id,role,branch_id,status").eq("user_id",auth.user.id).eq("status","active").maybeSingle();if(!access||!roles.has(access.role))return json(req,{error:"Staff access required"},403);
  const organizationId=access.organization_id,scopedBranch=access.role==="owner"?null:access.branch_id;if(access.role!=="owner"&&!scopedBranch)return json(req,{error:"Branch access required"},403);
  if(req.method==="GET"){
+  const receiptId=new URL(req.url).searchParams.get("payment_id")??"";
+  if(receiptId){
+   let receiptQuery=admin.from("payment_records").select("id,branch_id,member_id,membership_id,amount,currency,method,status,reference_number,received_by,paid_at,voided_at,void_reason").eq("organization_id",organizationId).eq("id",receiptId).maybeSingle();
+   if(scopedBranch)receiptQuery=receiptQuery.eq("branch_id",scopedBranch);
+   const {data:payment}=await receiptQuery;
+   if(!payment)return json(req,{error:"Payment not found"},404);
+   const [{data:member},{data:branch},{data:receiver},{data:membership}]=await Promise.all([
+    payment.member_id?admin.from("members").select("id,member_number,full_name,phone").eq("id",payment.member_id).maybeSingle():Promise.resolve({data:null}),
+    admin.from("branches").select("id,name").eq("id",payment.branch_id).maybeSingle(),
+    admin.from("profiles").select("id,full_name").eq("id",payment.received_by).maybeSingle(),
+    payment.membership_id?admin.from("memberships").select("id,plan_id,starts_on,ends_on,status").eq("id",payment.membership_id).maybeSingle():Promise.resolve({data:null})
+   ]);
+   const planId=membership?.plan_id;
+   const {data:plan}=planId?await admin.from("membership_plans").select("id,name,price_amount,duration_days,session_limit").eq("id",planId).maybeSingle():{data:null};
+   const {data:org}=await admin.from("organizations").select("name").eq("id",organizationId).maybeSingle();
+   return json(req,{payment,member,branch,receiver,membership,plan,organization:org});
+  }
   let membershipQuery=admin.from("memberships").select("id,branch_id,member_id,plan_id,starts_on,ends_on,status,created_at").eq("organization_id",organizationId).eq("status","pending").order("created_at",{ascending:false}).limit(500);
   let paymentQuery=admin.from("payment_records").select("id,branch_id,member_id,membership_id,amount,currency,method,status,reference_number,received_by,paid_at,voided_at,void_reason").eq("organization_id",organizationId).order("paid_at",{ascending:false}).limit(500);
   let branchQuery=admin.from("branches").select("id,name").eq("organization_id",organizationId).order("name");
