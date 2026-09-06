@@ -9,7 +9,7 @@ Deno.serve(async(req:Request)=>{
  const admin=createClient(Deno.env.get("SUPABASE_URL")??"",Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")??"",{auth:{persistSession:false,autoRefreshToken:false}});
  const token=req.headers.get("authorization")?.replace(/^Bearer\s+/i,"")??"";const {data:auth,error:authError}=await admin.auth.getUser(token);if(authError||!auth.user)return json(req,{error:"Unauthorized"},401);
  const {data:access}=await admin.from("organization_users").select("organization_id,role,branch_id,status").eq("user_id",auth.user.id).eq("status","active").maybeSingle();if(!access||!roles.has(access.role))return json(req,{error:"Staff access required"},403);
- const organizationId=access.organization_id,scopedBranch=access.role==="owner"?null:access.branch_id;if(access.role!=="owner"&&!scopedBranch)return json(req,{error:"Branch access required"},403);
+ const organizationId=access.organization_id,scopedBranch=access.role==="owner"?null:access.branch_id;if(access.role!=="owner"&&!scopedBranch)return json(req,{error:"Branch access required"},403);{const {data:plat}=await admin.from("profiles").select("is_platform_admin").eq("id",auth.user.id).maybeSingle();if(!plat?.is_platform_admin){const {data:orgRow}=await admin.from("organizations").select("status,subscription_ends_on").eq("id",organizationId).maybeSingle();const todayStr=new Date().toISOString().slice(0,10);if(!orgRow||orgRow.status!=="active"||(orgRow.subscription_ends_on&&orgRow.subscription_ends_on<todayStr))return json(req,{error:"Subscription suspended"},403)}}
  if(req.method==="GET"){
   const receiptId=new URL(req.url).searchParams.get("payment_id")??"";
   if(receiptId){

@@ -34,8 +34,10 @@ export default function LoginPage() {
       });
       if (sessionError) throw sessionError;
       window.location.replace(result.must_change_password ? "/change-password" : "/");
-    } catch {
-      setError("نام کاربری یا رمز عبور صحیح نیست.");
+    } catch (e) {
+      setError(e instanceof Error && e.message === "Subscription suspended"
+        ? "اشتراک مجموعه شما فعال نیست. برای تمدید با پشتیبانی تماس بگیرید."
+        : "نام کاربری یا رمز عبور صحیح نیست.");
     } finally {
       setLoading(false);
     }

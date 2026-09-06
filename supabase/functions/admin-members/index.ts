@@ -16,7 +16,7 @@ Deno.serve(async(req:Request)=>{
  const {data:access}=await admin.from("organization_users").select("organization_id,role,branch_id,status").eq("user_id",authData.user.id).eq("status","active").maybeSingle();
  if(!access||!staffRoles.has(access.role))return json(req,{error:"Staff access required"},403);
  const organizationId=access.organization_id,isOwner=access.role==="owner",scopedBranch=isOwner?null:access.branch_id;
- if(!isOwner&&!scopedBranch)return json(req,{error:"Branch access required"},403);
+ if(!isOwner&&!scopedBranch)return json(req,{error:"Branch access required"},403);{const {data:plat}=await admin.from("profiles").select("is_platform_admin").eq("id",authData.user.id).maybeSingle();if(!plat?.is_platform_admin){const {data:orgRow}=await admin.from("organizations").select("status,subscription_ends_on").eq("id",organizationId).maybeSingle();const todayStr=new Date().toISOString().slice(0,10);if(!orgRow||orgRow.status!=="active"||(orgRow.subscription_ends_on&&orgRow.subscription_ends_on<todayStr))return json(req,{error:"Subscription suspended"},403)}}
 
  if(req.method==="GET"){
   const url=new URL(req.url),detailId=url.searchParams.get("id")??"";

@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
   const { data: authData, error: authError } = await admin.auth.getUser(token);
   if (authError || !authData.user) return json(req, { error: "Unauthorized" }, 401);
   const { data: owner } = await admin.from("organization_users").select("organization_id").eq("user_id", authData.user.id).eq("role", "owner").eq("status", "active").maybeSingle();
-  if (!owner) return json(req, { error: "Owner access required" }, 403);
+  if (!owner) return json(req, { error: "Owner access required" }, 403);{const {data:plat}=await admin.from("profiles").select("is_platform_admin").eq("id",authData.user.id).maybeSingle();if(!plat?.is_platform_admin){const {data:orgRow}=await admin.from("organizations").select("status,subscription_ends_on").eq("id",owner.organization_id).maybeSingle();const todayStr=new Date().toISOString().slice(0,10);if(!orgRow||orgRow.status!=="active"||(orgRow.subscription_ends_on&&orgRow.subscription_ends_on<todayStr))return json(req,{error:"Subscription suspended"},403)}}
 
   if (req.method === "GET") {
     const [{ data: memberships, error: membersError }, { data: branches, error: branchesError }] = await Promise.all([

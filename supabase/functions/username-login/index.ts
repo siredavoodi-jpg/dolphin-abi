@@ -51,6 +51,32 @@ Deno.serve(async (req: Request) => {
       return json(req, { error: "Invalid credentials" }, 401);
     }
 
+    const { data: platform } = await admin
+      .from("profiles")
+      .select("is_platform_admin")
+      .eq("id", profile.id)
+      .maybeSingle();
+    if (!platform?.is_platform_admin) {
+      const { data: orgLinks } = await admin
+        .from("organization_users")
+        .select("organization_id")
+        .eq("user_id", profile.id)
+        .eq("status", "active");
+      const orgIds = (orgLinks ?? []).map((m) => m.organization_id);
+      let orgValid = false;
+      if (orgIds.length) {
+        const { data: orgRows } = await admin
+          .from("organizations")
+          .select("id,status,subscription_ends_on")
+          .in("id", orgIds);
+        const todayStr = new Date().toISOString().slice(0, 10);
+        orgValid = (orgRows ?? []).some(
+          (o) => o.status === "active" && (!o.subscription_ends_on || o.subscription_ends_on >= todayStr),
+        );
+      }
+      if (!orgValid) return json(req, { error: "Subscription suspended" }, 403);
+    }
+
     const { data: authUser, error: userError } = await admin.auth.admin.getUserById(profile.id);
     if (userError || !authUser.user?.email) return json(req, { error: "Invalid credentials" }, 401);
     const { data: signedIn, error: signInError } = await admin.auth.signInWithPassword({
